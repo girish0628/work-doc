@@ -1,0 +1,51 @@
+import os
+import zipfile
+import shutil
+
+# Define input KMZ files
+kmz_files = [
+    r"C:\path\to\kmz1.kmz",
+    r"C:\path\to\kmz2.kmz",
+    r"C:\path\to\kmz3.kmz"
+]
+
+# Define output folder
+output_folder = r"C:\path\to\output"
+merged_kml = os.path.join(output_folder, "merged.kml")
+final_kmz = os.path.join(output_folder, "merged.kmz")
+
+# Temporary folder to extract KMZs
+temp_folder = os.path.join(output_folder, "temp_kml")
+if os.path.exists(temp_folder):
+    shutil.rmtree(temp_folder)  # Clear previous extractions
+os.makedirs(temp_folder)
+
+# Extract all KMZ files
+kml_files = []
+for kmz in kmz_files:
+    with zipfile.ZipFile(kmz, 'r') as zip_ref:
+        zip_ref.extractall(temp_folder)  # Extract files
+        for file in zip_ref.namelist():
+            if file.endswith(".kml"):  # Find KML files
+                kml_files.append(os.path.join(temp_folder, file))
+
+# Merge KML files into a single KML
+with open(merged_kml, "w", encoding="utf-8") as output_kml:
+    output_kml.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+    output_kml.write('<kml xmlns="http://www.opengis.net/kml/2.2">\n')
+    output_kml.write("<Document>\n")
+
+    for kml in kml_files:
+        with open(kml, "r", encoding="utf-8") as input_kml:
+            lines = input_kml.readlines()
+            start_idx = next(i for i, line in enumerate(lines) if "<Document>" in line) + 1
+            end_idx = next(i for i, line in enumerate(lines) if "</Document>" in line)
+            output_kml.writelines(lines[start_idx:end_idx])  # Append only necessary content
+
+    output_kml.write("</Document>\n</kml>")
+
+# Create a new KMZ file
+with zipfile.ZipFile(final_kmz, "w", zipfile.ZIP_DEFLATED) as zipf:
+    zipf.write(merged_kml, os.path.basename(merged_kml))
+
+print("Merged KMZ created successfully:", final_kmz)
